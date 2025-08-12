@@ -25,11 +25,9 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports: ["8000:8000"]
     environment:
-      - HF_HUB_OFFLINE=1
       - OLLAMA_HOST=http://ollama:11434
       - PYTHONPATH=/app
     volumes:
-      - ./models:/models
       - ./outputs:/outputs
       - ./fonts:/fonts
     depends_on:
@@ -45,11 +43,9 @@ services:
     build: ./backend
     command: rq worker -u redis://redis:6379 meme
     environment:
-      - HF_HUB_OFFLINE=1
       - OLLAMA_HOST=http://ollama:11434
       - PYTHONPATH=/app
     volumes:
-      - ./models:/models
       - ./outputs:/outputs
       - ./fonts:/fonts
     depends_on:

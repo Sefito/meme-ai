@@ -2,12 +2,11 @@ import os, random, requests, re, json
 from typing import Tuple
 from rq import get_current_job
 import torch
-from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline
+from diffusers import StableDiffusionXLPipeline
 from PIL import Image, ImageDraw, ImageFont
 
-MODELS_DIR = "/models/stabilityai"
-BASE_DIR = os.path.join(MODELS_DIR, "stable-diffusion-xl-base-1.0")
-REFINER_DIR = os.path.join(MODELS_DIR, "stable-diffusion-xl-refiner-1.0")
+# Use SSD-1B model from HuggingFace Hub
+SSD_1B_MODEL_ID = "segmind/SSD-1B"
 OUT_DIR = "/outputs"
 FONT_PATH = "/fonts/Anton-Regular.ttf"
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
@@ -15,22 +14,20 @@ OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 dtype = torch.float16 if device == "cuda" else torch.float32
 
-_base = None
-_refiner = None
+_pipe = None
 
-def get_pipes():
-    global _base, _refiner
-    if _base is None:
-        _base = StableDiffusionXLPipeline.from_pretrained(
-            BASE_DIR, torch_dtype=dtype, use_safetensors=True, variant="fp16" if dtype==torch.float16 else None
+def get_pipe():
+    global _pipe
+    if _pipe is None:
+        _pipe = StableDiffusionXLPipeline.from_pretrained(
+            SSD_1B_MODEL_ID, 
+            torch_dtype=dtype, 
+            use_safetensors=True, 
+            variant="fp16" if dtype==torch.float16 else None
         ).to(device)
-        _base.enable_vae_tiling()
-    if _refiner is None:
-        _refiner = StableDiffusionXLImg2ImgPipeline.from_pretrained(
-            REFINER_DIR, torch_dtype=dtype, use_safetensors=True, variant="fp16" if dtype==torch.float16 else None
-        ).to(device)
-        _refiner.enable_vae_tiling()
-    return _base, _refiner
+        # Enable VAE tiling for memory efficiency
+        _pipe.enable_vae_tiling()
+    return _pipe
 
 def call_ollama(prompt: str) -> Tuple[str, str, str]:
     # Respuesta esperada: JSON con imagePrompt, topText, bottomText
@@ -88,13 +85,13 @@ def run_job(job_id: str, payload: dict):
     # 1) Ollama → prompt visual + captions
     try:
         image_prompt, top, bottom = call_ollama(user_prompt)
-        logger.info(f"Image prompt-----------------: {image_prompt}")
+        print(f"Image prompt: {image_prompt}")
     except Exception:
         image_prompt, top, bottom = user_prompt, "", ""
     job.meta.update({"progress":20}); job.save_meta()
 
-    # 2) SDXL (base + refiner)
-    base, refiner = get_pipes()
+    # 2) SSD-1B single-pass generation
+    pipe = get_pipe()
 
     # autocast helper
     if device == "cuda":
@@ -106,28 +103,16 @@ def run_job(job_id: str, payload: dict):
         autocast = DummyCtx()
 
     with autocast:
-        base_image = base(
+        image = pipe(
             prompt=image_prompt,
             num_inference_steps=steps,
-            denoising_end=0.8,
-            guidance_scale=guidance,
-            generator=generator
-        ).images[0]
-    job.meta.update({"progress":65}); job.save_meta()
-
-    with autocast:
-        refined = refiner(
-            prompt=image_prompt,
-            image=base_image,
-            num_inference_steps=max(10, int(steps*0.3)),
-            denoising_start=0.8,
             guidance_scale=guidance,
             generator=generator
         ).images[0]
     job.meta.update({"progress":85}); job.save_meta()
 
     # 3) Caption estilo meme
-    final_img = overlay_caption(refined, top, bottom)
+    final_img = overlay_caption(image, top, bottom)
 
     os.makedirs(OUT_DIR, exist_ok=True)
     out_path = os.path.join(OUT_DIR, f"{job_id}.png")
@@ -139,7 +124,7 @@ def run_job(job_id: str, payload: dict):
         "meta": {
             "seed": seed,
             "steps": steps,
-            "model": "sdxl+refiner",
+            "model": "SSD-1B",
             "prompt": image_prompt,
             "top": top, "bottom": bottom
         }
