@@ -7,6 +7,14 @@ services:
       - ollama:/root/.ollama
     environment:
       - OLLAMA_KEEP_ALIVE=24h
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   redis:
     image: redis:7

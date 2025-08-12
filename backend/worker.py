@@ -88,6 +88,7 @@ def run_job(job_id: str, payload: dict):
     # 1) Ollama → prompt visual + captions
     try:
         image_prompt, top, bottom = call_ollama(user_prompt)
+        logger.info(f"Image prompt-----------------: {image_prompt}")
     except Exception:
         image_prompt, top, bottom = user_prompt, "", ""
     job.meta.update({"progress":20}); job.save_meta()
