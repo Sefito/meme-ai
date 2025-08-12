@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+pydantic>=2
+redis
+rq
+diffusers[torch]>=0.29.0
+transformers
+safetensors
+xformers
+accelerate
+Pillow
+requests
+starlette

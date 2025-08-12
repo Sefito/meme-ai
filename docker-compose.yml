@@ -1,0 +1,55 @@
+version: "3.9"
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  api:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports: ["8000:8000"]
+    environment:
+      - HF_HUB_OFFLINE=1
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ./models:/models
+      - ./outputs:/outputs
+      - ./fonts:/fonts
+    depends_on:
+      - redis
+      - ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+  worker:
+    build: ./backend
+    command: python -m rq worker meme
+    environment:
+      - HF_HUB_OFFLINE=1
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ./models:/models
+      - ./outputs:/outputs
+      - ./fonts:/fonts
+    depends_on:
+      - redis
+      - ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+volumes:
+  ollama:
