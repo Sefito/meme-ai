@@ -19,6 +19,7 @@ services:
     environment:
       - HF_HUB_OFFLINE=1
       - OLLAMA_HOST=http://ollama:11434
+      - PYTHONPATH=/app
     volumes:
       - ./models:/models
       - ./outputs:/outputs
@@ -34,10 +35,11 @@ services:
 
   worker:
     build: ./backend
-    command: python -m rq worker meme
+    command: rq worker -u redis://redis:6379 meme
     environment:
       - HF_HUB_OFFLINE=1
       - OLLAMA_HOST=http://ollama:11434
+      - PYTHONPATH=/app
     volumes:
       - ./models:/models
       - ./outputs:/outputs
