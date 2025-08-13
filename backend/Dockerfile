@@ -6,8 +6,4 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# copia código del contexto ./backend
-COPY app ./app
-COPY worker.py ./worker.py
-
 EXPOSE 8000

@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   ollama:
     image: ollama/ollama:latest
@@ -30,6 +29,8 @@ services:
     volumes:
       - ./outputs:/outputs
       - ./fonts:/fonts
+      - ./backend/worker.py:/worker.py
+      - ./backend/app:/app/app
     depends_on:
       - redis
       - ollama
@@ -48,6 +49,7 @@ services:
     volumes:
       - ./outputs:/outputs
       - ./fonts:/fonts
+      - ./backend:/app
     depends_on:
       - redis
       - ollama

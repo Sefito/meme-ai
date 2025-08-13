@@ -3,7 +3,7 @@ uvicorn[standard]
 pydantic>=2
 redis
 rq
-git+https://github.com/huggingface/diffusers
+diffusers[torch]==0.29.1
 transformers==4.38.2
 safetensors==0.4.2
 xformers==0.0.24

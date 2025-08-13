@@ -23,6 +23,7 @@ var/
 .venv
 venv/
 ENV/
+model_cache/
 
 # Node.js / Frontend
 node_modules/
