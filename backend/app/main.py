@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 redis = Redis(host="redis", port=6379)
-q = Queue("meme", connection=redis, default_timeout=600)
+q = Queue("meme", connection=redis, default_timeout=1000)
 
 # Archivos estáticos de salida
 app.mount("/outputs", StaticFiles(directory="/outputs"), name="outputs")
