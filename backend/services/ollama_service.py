@@ -38,25 +38,25 @@ def call_ollama(
     """
     # System message optimized for JSON mode
     system_message = (
-        "Eres un escritor de memes experto. Dado un tema, genera contenido para un meme "
-        "y responde ÚNICAMENTE con un objeto JSON válido que contenga exactamente estos campos: "
-        '"imagePrompt" (descripción visual detallada para generar la imagen), '
-        '"topText" (texto superior del meme, corto y impactante), '
-        '"bottomText" (texto inferior del meme, corto y gracioso). '
-        "Responde solo JSON, sin texto adicional."
+        "You are an expert meme writer. Given a topic, generate content for a meme "
+        "and respond ONLY with a valid JSON object containing exactly these fields: "
+        '"imagePrompt" (detailed visual description to generate the image), '
+        '"topText" (top text of the meme, short and impactful), '
+        '"bottomText" (bottom text of the meme, short and funny). '
+        "Respond only with JSON, no additional text."
     )
     
     # Build request body with JSON mode enabled
     request_body = {
         "model": model,
-        "prompt": f"Sistema: {system_message}\n\nUsuario: {prompt}\n\nJSON:",
+        "prompt": f"System: {system_message}\n\nUser: {prompt}\n\nJSON:",
         "format": "json",  # Enable JSON mode for structured output
         "stream": False,
         "system": system_message,  # Use system parameter for better prompt handling
         "options": {
             "temperature": temperature,
             "num_predict": max_tokens,
-            "stop": ["\n\n", "Usuario:", "Sistema:"],  # Stop tokens to prevent extra text
+            "stop": ["\n\n", "User:", "System:"],  # Stop tokens to prevent extra text
         }
     }
     
