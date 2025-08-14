@@ -34,7 +34,7 @@ def run_video_job(job_id: str, payload: dict):
     # Convert image URL to file path
     # Assuming image_url is like "/outputs/job_id.png"
     if image_url.startswith("/outputs/"):
-        image_path = image_url.replace("/outputs/", "/outputs/")
+        image_path = image_url  # Keep the full path since it's already absolute
     else:
         return {
             "status": "error", 
