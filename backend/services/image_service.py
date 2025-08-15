@@ -14,13 +14,16 @@ class DummyCtx:
         return False
 
 
-def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor quality") -> Image.Image:
+def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor quality", 
+                  steps: int = 30, guidance: float = 5.0) -> Image.Image:
     """
     Generate an image using either SDXL models or SSD-1B model.
     
     Args:
         image_prompt: Text prompt for image generation
         neg_prompt: Negative prompt to avoid unwanted features
+        steps: Number of inference steps for generation (20-60)
+        guidance: Guidance scale for generation (3.0-9.0)
         
     Returns:
         Generated PIL Image
@@ -29,14 +32,14 @@ def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor qual
         _base_pipe, _refiner_pipe = load_sdxl_models()
         print("\n== SDXL MODEL LOADED ==")
         
-        n_steps = 40
         high_noise_frac = 0.8
         
         print("\n== GENERATING IMAGE ==")
         image = _base_pipe(
             prompt=image_prompt,
-            num_inference_steps=n_steps,
+            num_inference_steps=steps,
             denoising_end=high_noise_frac,
+            guidance_scale=guidance,
             output_type="latent",
         ).images[0]
         print("\n== BASE IMAGE GENERATED ==")
@@ -44,8 +47,9 @@ def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor qual
         print("\n== REFINER IMAGE GENERATING ==")
         image = _refiner_pipe(
             prompt=image_prompt,
-            num_inference_steps=n_steps,
+            num_inference_steps=steps,
             denoising_end=high_noise_frac,
+            guidance_scale=guidance,
             image=image,
         ).images[0]
         print("\n== REFINER IMAGE GENERATED ==")
@@ -61,11 +65,18 @@ def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor qual
             autocast = DummyCtx()
 
         print("\n== GENERATING IMAGE ==")
+        print("\n== With params ==")
+        print("Image Prompt: {}".format(image_prompt))
+        print("Negative Prompt: {}".format(neg_prompt))
+        print("Steps: {}".format(steps))
+        print("Guidance: {}".format(guidance))
     
         with autocast:
             image = pipe(
                 prompt=image_prompt,
                 negative_prompt=neg_prompt,
+                num_inference_steps=steps,
+                guidance_scale=guidance,
             ).images[0]
         print("\n== IMAGE GENERATED ==")
     

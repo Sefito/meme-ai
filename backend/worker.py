@@ -30,6 +30,8 @@ def run_job(job_id: str, payload: dict):
 
     user_prompt = payload.get("prompt","")
     seed = int(payload.get("seed") or random.randint(1, 2**31-1))
+    steps = payload.get("steps", 30)  # Default to 30 if not provided
+    guidance = payload.get("guidance", 5.0)  # Default to 5.0 if not provided
 
     # 1) Ollama → prompt visual + captions
     try:
@@ -47,7 +49,7 @@ def run_job(job_id: str, payload: dict):
     neg_prompt = "ugly, blurry, poor quality" 
 
     # 2) Image generation
-    image = generate_image(image_prompt, neg_prompt)
+    image = generate_image(image_prompt, neg_prompt, steps, guidance)
     
     image.save("/outputs/{}_source.png".format(job_id))
     job.meta.update({"progress":85}); job.save_meta()
@@ -66,7 +68,8 @@ def run_job(job_id: str, payload: dict):
         "imageUrl": f"/outputs/{job_id}.png",
         "meta": {
             "seed": seed,
-            "steps": 1,
+            "steps": steps,
+            "guidance": guidance,
             "model": "SSD-1B",
             "prompt": image_prompt,
             "top": top, "bottom": bottom
