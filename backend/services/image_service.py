@@ -1,6 +1,6 @@
 import torch
 from PIL import Image
-from models.image_models import load_sdxl_models, get_pipe
+from models.image_models import load_sdxl_models, get_pipe, get_flux_pipe
 from config.settings import MODEL_LIST_ID, SELECTED_MODEL_ID, device
 from diffusers.utils import logging as dlogging
 dlogging.enable_progress_bar() 
@@ -18,7 +18,7 @@ def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor qual
                   steps: int = 30, guidance: float = 5.0, model: str = "SSD-1B", 
                   aspect: str = "1:1") -> Image.Image:
     """
-    Generate an image using either SDXL models or SSD-1B model.
+    Generate an image using SDXL, SSD-1B, or FLUX models.
     
     Args:
         image_prompt: Text prompt for image generation
@@ -40,12 +40,11 @@ def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor qual
     }
     width, height = aspect_ratios.get(aspect, (512, 512))
     
-    # Model selection - for now, we'll map different model names to our available models
-    # This allows the UI to show different options while using what we have
+    # Model selection mapping
     model_mapping = {
         "SSD-1B": "SSD-1B",
-        "SSD-Lite": "SSD-1B",  # Fallback to SSD-1B
-        "Flux-1": "SSD-1B",    # Fallback to SSD-1B
+        "SSD-Lite": "SSD-1B",  # Fallback to SSD-1B  
+        "Flux-1": "FLUX",      # Now maps to actual FLUX model
         "SDXL": "SDXL"
     }
     
@@ -78,6 +77,34 @@ def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor qual
             image=image,
         ).images[0]
         print("\n== REFINER IMAGE GENERATED ==")
+        
+    elif selected_model == "FLUX":
+        pipe = get_flux_pipe()
+        print(f"\n== FLUX MODEL LOADED ({width}x{height}) ==")
+
+        # autocast helper
+        if device == "cuda":
+            autocast = torch.autocast(device_type="cuda", dtype=torch.float16)
+        else:
+            autocast = DummyCtx()
+
+        print("\n== GENERATING IMAGE ==")
+        print("\n== With params ==")
+        print("Image Prompt: {}".format(image_prompt))
+        print("Steps: {}".format(steps))
+        print("Guidance: {}".format(guidance))
+        print("Dimensions: {}x{}".format(width, height))
+    
+        with autocast:
+            # FLUX models typically use different parameter names
+            image = pipe(
+                prompt=image_prompt,
+                num_inference_steps=steps,
+                guidance_scale=guidance,
+                width=width,
+                height=height,
+            ).images[0]
+        print("\n== FLUX IMAGE GENERATED ==")
         
     else:
         pipe = get_pipe()

@@ -5,7 +5,8 @@ import torch
 MODEL_LIST_ID = {
     "SSD-1B": "segmind/SSD-1B",
     "SDXL": "stabilityai/stable-diffusion-xl-base-1.0",
-    "SDXLRefiner": "stabilityai/stable-diffusion-xl-refiner-1.0"
+    "SDXLRefiner": "stabilityai/stable-diffusion-xl-refiner-1.0",
+    "FLUX": "black-forest-labs/FLUX.1-Krea-dev"
 }
 # Selected model ID
 SELECTED_MODEL_ID = MODEL_LIST_ID["SSD-1B"]
@@ -29,6 +30,13 @@ sdxl_refiner_model_id = {
     "model_id": MODEL_LIST_ID["SDXLRefiner"],
     "use_safetensors": True,
     "variant": "fp16",
+    "dtype": torch.float16,
+}
+
+flux_model_id = {
+    "model_id": MODEL_LIST_ID["FLUX"],
+    "use_safetensors": True,
+    "variant": "fp16", 
     "dtype": torch.float16,
 }
 
