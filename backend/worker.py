@@ -7,10 +7,19 @@ from config.settings import OUT_DIR
 from services.ollama_service import call_ollama
 from services.image_service import generate_image
 from utils.text_overlay import overlay_caption
+from utils.websocket_client import WebSocketNotifier
+from redis import Redis
+
+# Set up WebSocket notifier
+redis_client = Redis(host="redis", port=6379) 
+websocket_notifier = WebSocketNotifier(redis_client)
 
 def run_job(job_id: str, payload: dict):
     job = get_current_job()
     job.meta.update({"status":"running","progress":5}); job.save_meta()
+    
+    # Send WebSocket update
+    websocket_notifier.send_job_update(job_id, "running", 5)
 
     user_prompt = payload.get("prompt","")
     seed = int(payload.get("seed") or random.randint(1, 2**31-1))
@@ -23,7 +32,10 @@ def run_job(job_id: str, payload: dict):
         print(f"Bottom: {bottom}")
     except Exception:
         image_prompt, top, bottom = user_prompt, "", ""
+    
     job.meta.update({"progress":20}); job.save_meta()
+    websocket_notifier.send_job_update(job_id, "running", 20)
+    
     neg_prompt = "ugly, blurry, poor quality" 
 
     # 2) Image generation
@@ -31,6 +43,7 @@ def run_job(job_id: str, payload: dict):
     
     image.save("/outputs/{}_source.png".format(job_id))
     job.meta.update({"progress":85}); job.save_meta()
+    websocket_notifier.send_job_update(job_id, "running", 85)
 
     # 3) Caption estilo meme
     final_img = overlay_caption(image, top, bottom)
@@ -39,7 +52,7 @@ def run_job(job_id: str, payload: dict):
     out_path = os.path.join(OUT_DIR, f"{job_id}.png")
     final_img.save(out_path, "PNG")
 
-    return {
+    result = {
         "status": "done",
         "imageUrl": f"/outputs/{job_id}.png",
         "meta": {
@@ -50,3 +63,8 @@ def run_job(job_id: str, payload: dict):
             "top": top, "bottom": bottom
         }
     }
+    
+    # Send WebSocket completion update
+    websocket_notifier.send_job_complete(job_id, result)
+    
+    return result
