@@ -65,6 +65,11 @@ def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor qual
             autocast = DummyCtx()
 
         print("\n== GENERATING IMAGE ==")
+        print("\n== With params ==")
+        print("Image Prompt: {}".format(image_prompt))
+        print("Negative Prompt: {}".format(neg_prompt))
+        print("Steps: {}".format(steps))
+        print("Guidance: {}".format(guidance))
     
         with autocast:
             image = pipe(
