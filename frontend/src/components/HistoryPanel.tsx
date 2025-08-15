@@ -29,12 +29,25 @@ export default function HistoryPanel({
   };
 
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('es-ES', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+    try {
+      // Ensure we have a valid Date object
+      const validDate = date instanceof Date ? date : new Date(date);
+      
+      // Check if the date is valid
+      if (isNaN(validDate.getTime())) {
+        return 'Fecha inválida';
+      }
+      
+      return new Intl.DateTimeFormat('es-ES', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(validDate);
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Fecha inválida';
+    }
   };
 
   return (
