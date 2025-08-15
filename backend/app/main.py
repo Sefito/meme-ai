@@ -1,4 +1,5 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, File, UploadFile, Form, Request, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from redis import Redis
 from rq import Queue
@@ -7,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 import json
 import asyncio
-from typing import Dict, Set
+from typing import Dict, Set, Optional, Union
+import os
 
 app = FastAPI(title="Meme AI API")
 
@@ -145,15 +147,98 @@ class CreateJob(BaseModel):
     negative: str | None = None
     steps: int | None = 30
     guidance: float | None = 5.0
+    model: str | None = "SSD-1B"
+    aspect: str | None = "1:1"
+    top_text: str | None = None
+    bottom_text: str | None = None
 
 class CreateVideoJob(BaseModel):
     imageUrl: str
     numFrames: int | None = 25
 
 @app.post("/api/jobs")
-def create_job(payload: CreateJob):
+async def create_job(request: Request):
+    """
+    Create a new image generation job.
+    Supports both multipart/form-data (with image upload) and JSON payloads.
+    """
     job_id = str(uuid4())
-    q.enqueue("worker.run_job", job_id, payload.model_dump(), job_id=job_id)
+    
+    # Check content type to determine how to parse the request
+    content_type = request.headers.get("content-type", "")
+    
+    if content_type.startswith("multipart/form-data"):
+        # Handle multipart form data
+        form = await request.form()
+        
+        payload_dict = {
+            "prompt": form.get("prompt"),
+            "seed": int(form.get("seed")) if form.get("seed") else None,
+            "negative": form.get("negative_prompt") or form.get("negative"),  # Support both field names
+            "steps": int(form.get("steps")) if form.get("steps") else 30,
+            "guidance": float(form.get("guidance")) if form.get("guidance") else 5.0,
+            "model": form.get("model", "SSD-1B"),
+            "aspect": form.get("aspect", "1:1"),
+            "top_text": form.get("top_text"),
+            "bottom_text": form.get("bottom_text"),
+            "has_image_upload": False,
+        }
+        
+        # Handle uploaded image
+        if "image" in form:
+            image_file = form["image"]
+            if hasattr(image_file, 'size') and image_file.size > 0:
+                # Save uploaded image temporarily
+                upload_dir = "/tmp/uploads"
+                os.makedirs(upload_dir, exist_ok=True)
+                image_path = os.path.join(upload_dir, f"{job_id}_input.png")
+                
+                content = await image_file.read()
+                with open(image_path, "wb") as f:
+                    f.write(content)
+                
+                payload_dict["image_path"] = image_path
+                payload_dict["has_image_upload"] = True
+                
+    elif content_type.startswith("application/json"):
+        # Handle JSON payload (backward compatibility)
+        try:
+            body = await request.body()
+            json_data = json.loads(body)
+            payload_dict = {
+                "prompt": json_data.get("prompt"),
+                "seed": json_data.get("seed"),
+                "negative": json_data.get("negative"),
+                "steps": json_data.get("steps", 30),
+                "guidance": json_data.get("guidance", 5.0),
+                "model": json_data.get("model", "SSD-1B"),
+                "aspect": json_data.get("aspect", "1:1"),
+                "top_text": json_data.get("top_text"),
+                "bottom_text": json_data.get("bottom_text"),
+                "has_image_upload": False,
+            }
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported content type")
+    
+    # Validate required fields
+    if not payload_dict.get("prompt"):
+        raise HTTPException(status_code=400, detail="Prompt is required")
+    
+    # Queue the job
+    q.enqueue("worker.run_job", job_id, payload_dict, job_id=job_id)
+    return {"jobId": job_id}
+
+
+# Keep old Pydantic endpoint for backward compatibility with existing clients
+@app.post("/api/jobs/json")
+def create_job_json(payload: CreateJob):
+    """Legacy JSON-only endpoint for backward compatibility"""
+    job_id = str(uuid4())
+    payload_dict = payload.model_dump()
+    payload_dict["has_image_upload"] = False
+    q.enqueue("worker.run_job", job_id, payload_dict, job_id=job_id)
     return {"jobId": job_id}
 
 @app.post("/api/video-jobs")
