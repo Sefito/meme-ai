@@ -3,6 +3,7 @@ uvicorn[standard]
 pydantic>=2
 redis
 rq
+aioredis  # For async Redis pub/sub in WebSocket implementation
 diffusers[torch]==0.29.1
 transformers==4.38.2
 safetensors==0.4.2
@@ -15,7 +16,7 @@ torch==2.2.0
 torchvision==0.17.0
 numpy==1.26.4
 tqdm==4.66.1
-matplotlib==3.8.3
+matplotlib==8.3
 ftfy==6.2.0
 huggingface_hub
 opencv-python==4.8.1.78
