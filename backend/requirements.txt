@@ -3,6 +3,7 @@ uvicorn[standard]
 pydantic>=2
 redis
 rq
+aioredis  # For async Redis pub/sub in WebSocket implementation
 diffusers[torch]==0.29.1
 transformers==4.38.2
 safetensors==0.4.2

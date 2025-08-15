@@ -10,18 +10,16 @@
 
 **AI-powered meme and video generator combining the best of modern AI**: Ollama LLM for creative text generation, SSD-1B for ultra-fast image synthesis, and Stable Video Diffusion for animated content. Create hilarious memes and engaging videos with professional typography in seconds!
 
-## ✨ Key Features
+## ⚡ Key Features
 
-🚀 **Blazing Fast Generation** - SSD-1B delivers 60% faster inference than SDXL
-🎬 **Video Generation** - Create animated videos from images using Stable Video Diffusion
-🎨 **Professional Typography** - Custom font rendering with outlined text effects  
-🧠 **AI-Driven Creativity** - Ollama LLM generates contextual image prompts and meme text
-⚡ **GPU Accelerated** - CUDA optimization for LLM, image, and video generation
-🐳 **Docker Ready** - Complete containerized deployment with microservices architecture
-📱 **Modern UI** - Responsive React frontend with real-time progress tracking
-🔄 **Queue System** - Redis-backed job processing for scalable content generation
-🎯 **API First** - RESTful FastAPI backend with automatic OpenAPI documentation
-🏗️ **Modular Architecture** - Clean separation of concerns with organized codebase
+- **🎯 AI-Powered Text Generation** - Ollama LLM creates witty, contextual meme text
+- **🖼️ High-Quality Image Generation** - SSD-1B model for crisp, detailed visuals
+- **🎬 Video Meme Creation** - Stable Video Diffusion for animated content
+- **🎨 Custom Typography** - Multiple font options with dynamic text positioning
+- **⚡ Real-Time WebSocket Updates** - Live progress tracking with automatic reconnection
+- **🐳 Containerized Deployment** - Docker Compose with health checks and service dependencies
+- **🔄 Background Processing** - Redis queue system with pub/sub for real-time notifications
+- **📱 Responsive Design** - Modern React TypeScript frontend with custom hooks
 
 ## 🏗️ Architecture Overview
 
@@ -32,23 +30,25 @@
 │   (Port 5173)   │    │   (Port 8000)   │    │   Processing    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
-         │              ┌─────────────────┐              │
-         │              │   Ollama LLM    │              │
-         │              │   (Port 11434)  │◄─────────────┘
-         │              └─────────────────┘              
-         │                       │                       
-         │              ┌─────────────────┐              
-         │              │     SSD-1B      │              
-         │              │  Image Model    │◄─────────────┘
-         │              └─────────────────┘              
-         │                       │                       
+    WebSocket                    │              ┌─────────────────┐
+    Real-time                    │              │   Ollama LLM    │
+    Updates                      │              │   (Port 11434)  │◄─────────────┘
+         │              ┌─────────────────┐     └─────────────────┘              
+         │              │  Redis Pub/Sub  │              │                       
+         │◄─────────────│   Real-time     │              │              
+         │              │  Notifications  │              │
+         │              └─────────────────┘    ┌─────────────────┐              
+         │                       │            │     SSD-1B      │              
+         │                       │            │  Image Model    │◄─────────────┘
+         │                       │            └─────────────────┘              
+         │                       │                       │                       
          │              ┌─────────────────┐    ┌─────────────────┐
          │              │ Stable Video    │    │  Video Worker   │
          │              │   Diffusion     │◄──►│   Processing    │
          │              └─────────────────┘    └─────────────────┘
-         │                                               
-    ┌─────────────────┐                                  
-    │  Static Files   │                                  
+         │                                               │
+    ┌─────────────────┐                                  │
+    │  Static Files   │                                  │
     │ /outputs (PNG)  │◄─────────────────────────────────┘
     │ /outputs (MP4)  │                                  
     └─────────────────┘                                  
@@ -81,33 +81,21 @@
 
 ### 🐳 Docker Deployment (Recommended)
 
-1. **Start Core Services**
+1. **Start All Services**
 ```bash
-# Launch Ollama and Redis
-docker compose up -d ollama redis
+# Launch all services with real-time WebSocket updates
+docker compose up --build
 
 # Download the LLM model (one-time setup)
 docker exec -it $(docker ps -qf name=ollama) ollama pull llama3.1:8b
 ```
-
-2. **Launch Backend Services**
-```bash
-# Start API server and background worker
-docker compose up --build api worker
-```
 > 📝 **Note**: SSD-1B model (~2GB) downloads automatically from HuggingFace on first use
 
-3. **Start Frontend (Development)**
-```bash
-cd frontend
-pnpm install  # or npm install
-pnpm dev      # Runs on http://localhost:5173
-```
-
-4. **Access the Application**
-   - **Frontend**: http://localhost:5173
+2. **Access the Application**
+   - **Frontend**: http://localhost:5173 (with live WebSocket updates)
    - **API Documentation**: http://localhost:8000/docs
    - **Generated Memes**: http://localhost:8000/outputs/
+   - **Health Check**: http://localhost:8000/api/health
 
 ### 💻 Local Development Setup
 
@@ -419,7 +407,7 @@ We welcome contributions! Here's how to get started:
 
 ### 🚀 Long-term Vision
 - [ ] **Multi-language Support** - LLM prompts in various languages
-- [ ] **Video Memes** - Animated GIF and MP4 generation
+- [x] **Video Memes** - ✅ Animated MP4 generation with Stable Video Diffusion
 - [ ] **Social Integration** - Direct sharing to platforms
 - [ ] **Custom Model Training** - Fine-tune on specific meme styles
 - [ ] **Mobile App** - Native iOS and Android applications
@@ -428,7 +416,7 @@ We welcome contributions! Here's how to get started:
 ### 💡 Suggested Improvements
 
 **Technical Enhancements:**
-- Implement WebSocket for real-time progress updates
+- ✅ **WebSocket Real-Time Updates** - Implemented with automatic reconnection and pub/sub
 - Add Redis caching for frequently generated memes  
 - Support for additional image models (DALL-E, Midjourney API)
 - Implement proper logging and monitoring (Prometheus/Grafana)
