@@ -10,6 +10,12 @@
 
 **AI-powered meme and video generator combining the best of modern AI**: Ollama LLM for creative text generation, SSD-1B for ultra-fast image synthesis, and Stable Video Diffusion for animated content. Create hilarious memes and engaging videos with professional typography in seconds!
 
+## 🖼️ Web Interface
+
+![Meme AI Studio Web Interface](docs/screenshot-web-interface.png)
+
+*The modern, responsive web interface featuring real-time generation progress, parameter controls, and instant meme creation with Spanish localization.*
+
 ## ⚡ Key Features
 
 - **🎯 AI-Powered Text Generation** - Ollama LLM creates witty, contextual meme text

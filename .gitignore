@@ -67,3 +67,4 @@ outputs/*
 # Logs
 logs
 *.log
+.pnpm-store
