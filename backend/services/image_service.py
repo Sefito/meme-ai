@@ -2,7 +2,8 @@ import torch
 from PIL import Image
 from models.image_models import load_sdxl_models, get_pipe
 from config.settings import MODEL_LIST_ID, SELECTED_MODEL_ID, device
-
+from diffusers.utils import logging as dlogging
+dlogging.enable_progress_bar() 
 
 class DummyCtx:
     """Dummy context manager for non-CUDA environments."""

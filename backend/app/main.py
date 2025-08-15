@@ -18,6 +18,7 @@ app.add_middleware(
 
 redis = Redis(host="redis", port=6379)
 q = Queue("meme", connection=redis, default_timeout=1000)
+video_q = Queue("video", connection=redis, default_timeout=3000)  # Longer timeout for video processing
 
 # Archivos estáticos de salida
 app.mount("/outputs", StaticFiles(directory="/outputs"), name="outputs")
@@ -29,14 +30,38 @@ class CreateJob(BaseModel):
     steps: int | None = 30
     guidance: float | None = 5.0
 
+class CreateVideoJob(BaseModel):
+    imageUrl: str
+    numFrames: int | None = 25
+
 @app.post("/api/jobs")
 def create_job(payload: CreateJob):
     job_id = str(uuid4())
     q.enqueue("worker.run_job", job_id, payload.model_dump(), job_id=job_id)
     return {"jobId": job_id}
 
+@app.post("/api/video-jobs")
+def create_video_job(payload: CreateVideoJob):
+    job_id = str(uuid4())
+    video_q.enqueue("video_worker.run_video_job", job_id, payload.model_dump(), job_id=job_id)
+    return {"jobId": job_id}
+
 @app.get("/api/jobs/{job_id}")
 def get_job(job_id: str):
+    from rq.job import Job
+    try:
+        job = Job.fetch(job_id, connection=redis)
+    except Exception:
+        return {"status":"error","message":"not found"}
+    if job.is_finished:
+        return job.result
+    if job.is_failed:
+        return {"status":"error","message":str(job.exc_info)}
+    meta = job.meta or {}
+    return {"status": meta.get("status","queued"), "progress": meta.get("progress",0)}
+
+@app.get("/api/video-jobs/{job_id}")
+def get_video_job(job_id: str):
     from rq.job import Job
     try:
         job = Job.fetch(job_id, connection=redis)

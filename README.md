@@ -8,25 +8,27 @@
 [![GPU](https://img.shields.io/badge/GPU-CUDA%2012.x-green.svg)](https://developer.nvidia.com/cuda-downloads)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**AI-powered meme generator combining the best of modern AI**: Ollama LLM for creative text generation and SSD-1B for ultra-fast, high-quality image synthesis. Create hilarious, contextual memes with professional typography in seconds!
+**AI-powered meme and video generator combining the best of modern AI**: Ollama LLM for creative text generation, SSD-1B for ultra-fast image synthesis, and Stable Video Diffusion for animated content. Create hilarious memes and engaging videos with professional typography in seconds!
 
 ## ✨ Key Features
 
 🚀 **Blazing Fast Generation** - SSD-1B delivers 60% faster inference than SDXL
+🎬 **Video Generation** - Create animated videos from images using Stable Video Diffusion
 🎨 **Professional Typography** - Custom font rendering with outlined text effects  
 🧠 **AI-Driven Creativity** - Ollama LLM generates contextual image prompts and meme text
-⚡ **GPU Accelerated** - CUDA optimization for both LLM and image generation
+⚡ **GPU Accelerated** - CUDA optimization for LLM, image, and video generation
 🐳 **Docker Ready** - Complete containerized deployment with microservices architecture
 📱 **Modern UI** - Responsive React frontend with real-time progress tracking
-🔄 **Queue System** - Redis-backed job processing for scalable meme generation
+🔄 **Queue System** - Redis-backed job processing for scalable content generation
 🎯 **API First** - RESTful FastAPI backend with automatic OpenAPI documentation
+🏗️ **Modular Architecture** - Clean separation of concerns with organized codebase
 
 ## 🏗️ Architecture Overview
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   React + TS    │    │   FastAPI       │    │   Redis Queue   │
-│   Frontend      │◄──►│   Backend       │◄──►│   Worker        │
+│   Frontend      │◄──►│   Backend       │◄──►│  Image Worker   │
 │   (Port 5173)   │    │   (Port 8000)   │    │   Processing    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
@@ -39,20 +41,34 @@
          │              │     SSD-1B      │              
          │              │  Image Model    │◄─────────────┘
          │              └─────────────────┘              
+         │                       │                       
+         │              ┌─────────────────┐    ┌─────────────────┐
+         │              │ Stable Video    │    │  Video Worker   │
+         │              │   Diffusion     │◄──►│   Processing    │
+         │              └─────────────────┘    └─────────────────┘
          │                                               
     ┌─────────────────┐                                  
     │  Static Files   │                                  
-    │   /outputs      │◄─────────────────────────────────┘
+    │ /outputs (PNG)  │◄─────────────────────────────────┘
+    │ /outputs (MP4)  │                                  
     └─────────────────┘                                  
 ```
 
-### 🔄 Meme Generation Pipeline
+### 🔄 Content Generation Pipeline
 
+#### 🖼️ Meme Generation
 1. **User Input** → Prompt submission via React frontend
 2. **LLM Processing** → Ollama generates image description + meme text (top/bottom)
 3. **Image Generation** → SSD-1B creates base image from description
 4. **Text Overlay** → Professional meme text rendering with custom font
 5. **Delivery** → Real-time progress updates and final meme download
+
+#### 🎬 Video Generation
+1. **Image Input** → Use existing generated meme or upload custom image
+2. **Video Processing** → Stable Video Diffusion animates the image
+3. **Frame Generation** → Creates 25 frames at 7 FPS with motion effects
+4. **Video Export** → Exports to MP4 format with optimized settings
+5. **Delivery** → Real-time progress updates and final video download
 
 ## 🚀 Quick Start
 
@@ -164,9 +180,12 @@ curl "http://localhost:8000/api/jobs/{job_id}"
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/jobs` | Create new meme generation job |
-| `GET` | `/api/jobs/{id}` | Get job status and results |
-| `GET` | `/api/health` | Service health check |
-| `GET` | `/outputs/{filename}` | Download generated images |
+| `POST` | `/api/video-jobs` | Create new video generation job |
+| `GET` | `/api/jobs/{job_id}` | Get job status and result |
+| `GET` | `/api/video-jobs/{job_id}` | Get video job status and result |
+| `GET` | `/outputs/{filename}` | Download generated meme or video |
+| `GET` | `/docs` | Interactive API documentation |
+| `GET` | `/health` | Health check endpoint |
 
 ### Request Schema
 
@@ -280,12 +299,27 @@ sudo lsof -i :5173  # Frontend
 
 ```
 meme-ai/
-├── backend/                 # FastAPI backend
+├── backend/                 # FastAPI backend with modular architecture
 │   ├── app/
 │   │   └── main.py         # API routes and CORS setup
-│   ├── worker.py           # RQ background job processor
+│   ├── config/             # Configuration management
+│   │   ├── __init__.py
+│   │   └── settings.py     # Model configs, environment variables
+│   ├── models/             # AI model loading and management
+│   │   ├── __init__.py
+│   │   └── image_models.py # SSD-1B and SDXL model loaders
+│   ├── services/           # Business logic services
+│   │   ├── __init__.py
+│   │   ├── image_service.py    # Image generation logic
+│   │   ├── ollama_service.py   # LLM API integration
+│   │   └── video_service.py    # Video generation with SVD
+│   ├── utils/              # Utility functions
+│   │   ├── __init__.py
+│   │   └── text_overlay.py # Meme text rendering
+│   ├── worker.py           # Image generation job processor
+│   ├── video_worker.py     # Video generation job processor
 │   ├── Dockerfile          # Backend container config
-│   └── requirements.txt    # Python dependencies
+│   └── requirements.txt    # Python dependencies (updated with video libs)
 ├── frontend/               # React + TypeScript frontend
 │   ├── src/
 │   │   ├── components/     # UI components
@@ -296,10 +330,65 @@ meme-ai/
 │   └── vite.config.ts     # Vite configuration
 ├── fonts/                 # Typography assets
 │   └── Anton-Regular.ttf  # Meme font (OFL licensed)
-├── outputs/               # Generated meme storage
+├── outputs/               # Generated content storage (PNG + MP4)
 ├── docker-compose.yml     # Multi-service orchestration
 └── README.md             # This file
 ```
+
+## 🏗️ Modular Architecture
+
+The backend has been **completely refactored** into a clean, modular architecture for better maintainability and testing:
+
+### **📦 Core Modules**
+
+- **`config/settings.py`** - Centralized configuration management
+  - Model configurations (SSD-1B, SDXL, SVD)
+  - Environment variables and device settings
+  - Path and font configurations
+
+- **`models/image_models.py`** - AI model loading and caching
+  - SSD-1B pipeline management (`get_pipe()`)
+  - SDXL base and refiner models (`load_sdxl_models()`)
+  - Memory-efficient model loading with global instances
+
+- **`services/`** - Business logic separation
+  - **`ollama_service.py`** - LLM API integration and prompt processing
+  - **`image_service.py`** - Image generation orchestration
+  - **`video_service.py`** - Video generation with Stable Video Diffusion
+
+- **`utils/text_overlay.py`** - Typography and text rendering utilities
+
+### **🎬 Video Generation System**
+
+**New Components:**
+- **`video_worker.py`** - Dedicated video job processor
+- **`services/video_service.py`** - SVD integration with optimizations
+- **Updated `requirements.txt`** - Added OpenCV, ImageIO, FFmpeg support
+
+**Video Features:**
+- **Model**: Stable Video Diffusion (`stabilityai/stable-video-diffusion-img2vid-xt`)
+- **Output**: MP4 videos with 25 frames at 7 FPS
+- **Input**: Any generated meme or uploaded image (320x576 resolution)
+- **Memory Optimization**: CPU offload, XFormers support, chunk decoding
+
+### **⚡ Video Performance Optimization**
+
+**Current Performance Issues:**
+- Video generation takes significantly longer than image generation (~30-60 seconds)
+- SVD model is computationally intensive (~3.5GB model size)
+- Memory usage can be high during video processing
+
+**Optimization Strategies:**
+1. **Reduce Frame Count**: Default 25 frames → 16 frames for faster generation
+2. **Lower Resolution**: 320x576 → 256x448 for quicker processing
+3. **Model Quantization**: Use FP16 precision and enable memory-efficient attention
+4. **Batch Processing**: Process multiple video requests in sequence
+5. **Caching**: Cache frequently used base images for video generation
+
+**Performance Benchmarks (RTX 3080):**
+- **16 frames**: ~20-30 seconds
+- **25 frames**: ~35-50 seconds  
+- **Memory usage**: ~6-8GB VRAM during generation
 
 ## 🤝 Contributing
 
