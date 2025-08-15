@@ -43,24 +43,19 @@ class WebSocketManager:
     async def _redis_listener(self):
         """Listen for Redis pub/sub messages in async loop"""
         try:
-            # For now, we'll skip the async Redis listener since asyncio-redis 
-            # is not readily available. The WebSocket will still work for direct updates
-            # and the frontend has polling fallback.
-            # 
-            # In production, you would install asyncio-redis or aioredis and uncomment:
-            # 
-            # import aioredis
-            # redis_client = aioredis.from_url("redis://redis:6379")
-            # pubsub = redis_client.pubsub()
-            # await pubsub.psubscribe("job_updates:*")
-            # 
-            # async for message in pubsub.listen():
-            #     if message['type'] == 'pmessage':
-            #         job_id = message['channel'].decode().split(':', 1)[1]
-            #         data = json.loads(message['data'])
-            #         await self.send_job_update(job_id, data)
+            # Enable Redis pub/sub for real-time WebSocket updates
+            import aioredis
+            redis_client = aioredis.from_url("redis://redis:6379")
+            pubsub = redis_client.pubsub()
+            await pubsub.psubscribe("job_updates:*")
             
-            print("Redis pub/sub listener: Using polling fallback (install aioredis for full WebSocket support)")
+            print("Redis pub/sub listener: Connected and listening for job updates")
+            
+            async for message in pubsub.listen():
+                if message['type'] == 'pmessage':
+                    job_id = message['channel'].decode().split(':', 1)[1]
+                    data = json.loads(message['data'])
+                    await self.send_job_update(job_id, data)
             
         except Exception as e:
             print(f"Redis listener error: {e}")

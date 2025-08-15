@@ -7,9 +7,6 @@ export function useWebSocketJob(jobId?: string) {
   const [status, setStatus] = useState<JobStatus>({ status: 'queued' });
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const maxReconnectAttempts = 5;
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
   const connect = useCallback((jobId: string) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -17,6 +14,7 @@ export function useWebSocketJob(jobId?: string) {
     }
 
     try {
+      // Use proxy path for WebSocket connection
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/${jobId}`;
       const ws = new WebSocket(wsUrl);
@@ -24,7 +22,6 @@ export function useWebSocketJob(jobId?: string) {
       ws.onopen = () => {
         console.log('WebSocket connected for job:', jobId);
         setIsConnected(true);
-        setReconnectAttempts(0);
       };
 
       ws.onmessage = (event) => {
@@ -36,32 +33,27 @@ export function useWebSocketJob(jobId?: string) {
           }
           // Update job status with real-time data
           setStatus(data);
+          
+          // If job is complete, don't reconnect if connection drops
+          if (data.status === 'done') {
+            ws.close();
+            wsRef.current = null;
+            setIsConnected(false);
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected for job:', jobId);
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected for job:', jobId, 'Code:', event.code);
         setIsConnected(false);
-        
-        // Attempt to reconnect if not intentionally closed
-        if (reconnectAttempts < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Exponential backoff, max 10s
-          console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            setReconnectAttempts(prev => prev + 1);
-            connect(jobId);
-          }, delay);
-        } else {
-          console.log('Max reconnection attempts reached, falling back to polling');
-          // TODO: Implement fallback to polling
-        }
       };
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
+        wsRef.current?.close();
+        wsRef.current = null;
         setIsConnected(false);
       };
 
@@ -80,21 +72,15 @@ export function useWebSocketJob(jobId?: string) {
       console.error('Error creating WebSocket connection:', error);
       setIsConnected(false);
     }
-  }, [reconnectAttempts, maxReconnectAttempts]);
+  }, []);
 
   const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-    
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
     
     setIsConnected(false);
-    setReconnectAttempts(0);
   }, []);
 
   useEffect(() => {
@@ -102,6 +88,9 @@ export function useWebSocketJob(jobId?: string) {
       disconnect();
       return;
     }
+
+    // Disconnect any existing connection first
+    disconnect();
 
     // Get initial status via REST API, then connect WebSocket for updates
     const fetchInitialStatus = async () => {
@@ -115,8 +104,6 @@ export function useWebSocketJob(jobId?: string) {
         }
       } catch (error) {
         console.error('Error fetching initial job status:', error);
-        // Still try to connect WebSocket
-        connect(jobId);
       }
     };
 
@@ -125,7 +112,7 @@ export function useWebSocketJob(jobId?: string) {
     return () => {
       disconnect();
     };
-  }, [jobId, connect, disconnect]);
+  }, [jobId]);
 
   // Close WebSocket when component unmounts
   useEffect(() => {
@@ -142,16 +129,14 @@ export function useWebSocketVideoJob(jobId?: string) {
   const [status, setStatus] = useState<VideoJobStatus>({ status: 'queued' });
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const maxReconnectAttempts = 5;
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+
 
   const connect = useCallback((jobId: string) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       return; // Already connected
     }
-
     try {
+      // Use proxy path for WebSocket connection
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/${jobId}`;
       const ws = new WebSocket(wsUrl);
@@ -159,7 +144,6 @@ export function useWebSocketVideoJob(jobId?: string) {
       ws.onopen = () => {
         console.log('WebSocket connected for video job:', jobId);
         setIsConnected(true);
-        setReconnectAttempts(0);
       };
 
       ws.onmessage = (event) => {
@@ -176,23 +160,9 @@ export function useWebSocketVideoJob(jobId?: string) {
         }
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected for video job:', jobId);
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected for video job:', jobId, 'Code:', event.code);
         setIsConnected(false);
-        
-        // Attempt to reconnect if not intentionally closed
-        if (reconnectAttempts < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Exponential backoff, max 10s
-          console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            setReconnectAttempts(prev => prev + 1);
-            connect(jobId);
-          }, delay);
-        } else {
-          console.log('Max reconnection attempts reached, falling back to polling');
-          // TODO: Implement fallback to polling
-        }
       };
 
       ws.onerror = (error) => {
@@ -215,13 +185,9 @@ export function useWebSocketVideoJob(jobId?: string) {
       console.error('Error creating WebSocket connection:', error);
       setIsConnected(false);
     }
-  }, [reconnectAttempts, maxReconnectAttempts]);
+  }, []);
 
   const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
     
     if (wsRef.current) {
       wsRef.current.close();
@@ -229,7 +195,6 @@ export function useWebSocketVideoJob(jobId?: string) {
     }
     
     setIsConnected(false);
-    setReconnectAttempts(0);
   }, []);
 
   useEffect(() => {
@@ -237,6 +202,9 @@ export function useWebSocketVideoJob(jobId?: string) {
       disconnect();
       return;
     }
+
+    // Disconnect any existing connection first
+    disconnect();
 
     // Get initial status via REST API, then connect WebSocket for updates
     const fetchInitialStatus = async () => {
@@ -250,8 +218,6 @@ export function useWebSocketVideoJob(jobId?: string) {
         }
       } catch (error) {
         console.error('Error fetching initial video job status:', error);
-        // Still try to connect WebSocket
-        connect(jobId);
       }
     };
 
@@ -260,7 +226,7 @@ export function useWebSocketVideoJob(jobId?: string) {
     return () => {
       disconnect();
     };
-  }, [jobId, connect, disconnect]);
+  }, [jobId]);
 
   // Close WebSocket when component unmounts
   useEffect(() => {
