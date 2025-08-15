@@ -29,12 +29,12 @@ export default function App() {
   };
 
   const isWorking = status.status === 'queued' || status.status === 'running';
-  const isVideoWorking = videoStatus.status === 'queued' || videoStatus.status === 'running';
+  const isVideoWorking = videoStatus.status === 'running' || isWorking;
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Meme AI (Ollama + SDXL)</h1>
+        <h1 className="text-2xl font-bold">Meme AI (Ollama + SSD-1B)</h1>
         <a href="http://localhost:8000/docs" target="_blank" className="text-sm opacity-70 hover:opacity-100">API Docs</a>
       </header>
 
