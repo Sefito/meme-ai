@@ -93,7 +93,7 @@
 docker compose up --build
 
 # Download the LLM model (one-time setup)
-docker exec -it $(docker ps -qf name=ollama) ollama pull llama3.1:8b
+docker exec -it $(docker ps -qf name=ollama) ollama pull qwen3:4b
 ```
 > 📝 **Note**: SSD-1B model (~2GB) downloads automatically from HuggingFace on first use
 
@@ -224,7 +224,7 @@ interface JobStatus {
 
 ### Model Configuration
 
-- **LLM Model**: `llama3.1:8b` (Ollama)
+- **LLM Model**: `qwen3:4b` (Ollama)
 - **Image Model**: `segmind/SSD-1B` (HuggingFace)
 - **Font**: Anton-Regular.ttf (included)
 - **Output Format**: PNG with transparency support
@@ -243,7 +243,7 @@ interface JobStatus {
 <details>
 <summary><strong>Model Download Issues</strong></summary>
 
-- **Ollama Model**: `docker exec -it ollama-container ollama pull llama3.1:8b`
+- **Ollama Model**: `docker exec -it ollama-container ollama pull qwen3:4b`
 - **SSD-1B**: Automatically downloads from HuggingFace (~2GB), ensure stable internet
 - Check disk space: Models require ~10GB total storage
 

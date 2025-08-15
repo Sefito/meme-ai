@@ -15,7 +15,7 @@ class OllamaError(Exception):
 
 def call_ollama(
     prompt: str, 
-    model: str = "llama3.1:8b",
+    model: str = "qwen3:4b",
     temperature: float = 0.7,
     max_tokens: int = 256,
     timeout: int = 120
@@ -25,7 +25,7 @@ def call_ollama(
     
     Args:
         prompt: User input prompt for meme generation
-        model: Ollama model to use (default: llama3.1:8b)
+        model: Ollama model to use (default: qwen3:4b)
         temperature: Sampling temperature (0.0-1.0, default: 0.7)
         max_tokens: Maximum tokens to generate (default: 256)
         timeout: Request timeout in seconds (default: 120)
