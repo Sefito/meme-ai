@@ -1,6 +1,6 @@
 import torch
 from PIL import Image
-from models.image_models import load_sdxl_models, get_pipe
+from models.image_models import load_sdxl_models, get_pipe, get_flux_pipe
 from config.settings import MODEL_LIST_ID, SELECTED_MODEL_ID, device
 from diffusers.utils import logging as dlogging
 dlogging.enable_progress_bar() 
@@ -38,20 +38,56 @@ def generate_image(image_prompt: str, neg_prompt: str = "ugly, blurry, poor qual
         "16:9": (512, 288),
         "9:16": (288, 512),
     }
-    width, height = aspect_ratios.get(aspect, (512, 512))
+    
+    # Flux uses larger default dimensions (1024x1024)
+    flux_aspect_ratios = {
+        "1:1": (1024, 1024),
+        "4:3": (1024, 768),
+        "16:9": (1024, 576),
+        "9:16": (576, 1024),
+    }
+    
+    # Use appropriate dimensions based on model
+    if model == "Flux-1":
+        width, height = flux_aspect_ratios.get(aspect, (1024, 1024))
+    else:
+        width, height = aspect_ratios.get(aspect, (512, 512))
     
     # Model selection - for now, we'll map different model names to our available models
     # This allows the UI to show different options while using what we have
     model_mapping = {
         "SSD-1B": "SSD-1B",
         "SSD-Lite": "SSD-1B",  # Fallback to SSD-1B
-        "Flux-1": "SSD-1B",    # Fallback to SSD-1B
+        "Flux-1": "Flux-1",    # Now properly supported
         "SDXL": "SDXL"
     }
     
     selected_model = model_mapping.get(model, "SSD-1B")
     
-    if selected_model == "SDXL" and MODEL_LIST_ID["SDXL"] == SELECTED_MODEL_ID:
+    if selected_model == "Flux-1":
+        pipe = get_flux_pipe()
+        print(f"\n== FLUX MODEL LOADED ({width}x{height}) ==")
+        
+        print("\n== GENERATING IMAGE WITH FLUX ==")
+        print("\n== With params ==")
+        print("Image Prompt: {}".format(image_prompt))
+        print("Steps: {}".format(steps))
+        print("Guidance: {}".format(guidance))
+        print("Dimensions: {}x{}".format(width, height))
+        
+        # Use Flux-specific parameters
+        image = pipe(
+            prompt=image_prompt,
+            height=height,
+            width=width,
+            guidance_scale=guidance,
+            num_inference_steps=steps,
+            max_sequence_length=512,
+            generator=torch.Generator("cpu").manual_seed(0)  # Fixed seed for consistency
+        ).images[0]
+        print("\n== FLUX IMAGE GENERATED ==")
+        
+    elif selected_model == "SDXL" and MODEL_LIST_ID["SDXL"] == SELECTED_MODEL_ID:
         _base_pipe, _refiner_pipe = load_sdxl_models()
         print(f"\n== SDXL MODEL LOADED ({width}x{height}) ==")
         

@@ -1,13 +1,14 @@
 import torch
-from diffusers import StableDiffusionXLPipeline, DiffusionPipeline
+from diffusers import StableDiffusionXLPipeline, DiffusionPipeline, FluxPipeline
 
 # Import configurations
-from config.settings import ssd1b_model_id, sdxl_model_id, sdxl_refiner_model_id, device, dtype
+from config.settings import ssd1b_model_id, sdxl_model_id, sdxl_refiner_model_id, flux_model_id, device, dtype
 
 # Global model instances
 _pipe = None
 _base_pipe = None
 _refiner_pipe = None
+_flux_pipe = None
 
 
 def load_sdxl_models():
@@ -57,3 +58,21 @@ def get_pipe():
     print("\n== SSD-1B MODEL LOADED ==")
     
     return _pipe
+
+
+def get_flux_pipe():
+    """Load and return Flux pipeline."""
+    global _flux_pipe
+    
+    if _flux_pipe is None:
+        print("\n== Loading Flux model with dtype: {} ==".format(flux_model_id["dtype"]))
+        _flux_pipe = FluxPipeline.from_pretrained(
+            pretrained_model_name_or_path=flux_model_id["model_id"],
+            torch_dtype=flux_model_id["dtype"],
+            cache_dir="./model_cache"
+        )
+        # Enable CPU offloading to save VRAM as recommended in docs
+        _flux_pipe.enable_model_cpu_offload()
+    print("\n== FLUX MODEL LOADED ==")
+    
+    return _flux_pipe
