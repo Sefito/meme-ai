@@ -19,7 +19,7 @@
 ## ⚡ Key Features
 
 - **🎯 AI-Powered Text Generation** - Ollama LLM creates witty, contextual meme text
-- **🖼️ High-Quality Image Generation** - SSD-1B model for crisp, detailed visuals
+- **🖼️ Multiple AI Models** - Choose from SSD-1B (fast), FLUX.1-Krea-dev (premium quality), or SDXL (balanced)
 - **🎬 Video Meme Creation** - Stable Video Diffusion for animated content
 - **🎨 Custom Typography** - Multiple font options with dynamic text positioning
 - **⚡ Real-Time WebSocket Updates** - Live progress tracking with automatic reconnection
@@ -75,6 +75,25 @@
 3. **Frame Generation** → Creates 25 frames at 7 FPS with motion effects
 4. **Video Export** → Exports to MP4 format with optimized settings
 5. **Delivery** → Real-time progress updates and final video download
+
+## 🤖 Available AI Models
+
+### Image Generation Models
+
+| Model | Speed | Quality | VRAM | Use Case |
+|-------|-------|---------|------|----------|
+| **SSD-1B** | ⚡ Fastest (2-3s) | High | 4GB | Quick iterations, prototyping |
+| **FLUX.1-Krea-dev** | 🎨 Medium (4-6s) | Excellent | 8-10GB | Premium quality, artistic styles |
+| **SDXL** | 🔄 Slower (5-8s) | High | 8GB | Balanced quality/speed |
+
+**Model Selection**: The frontend automatically routes your model choice:
+- `SSD-1B` → Segmind SSD-1B (ultra-fast)
+- `Flux-1` → Black Forest Labs FLUX.1-Krea-dev (premium)
+- `SDXL` → Stability AI SDXL with refiner (high-end)
+
+### Video Generation Models
+
+- **Stable Video Diffusion** - Converts static images to smooth 25-frame videos
 
 ## 🚀 Quick Start
 
@@ -273,15 +292,16 @@ sudo lsof -i :5173  # Frontend
 
 ## 🚀 Performance & Benchmarks
 
-### SSD-1B vs Stable Diffusion XL
+### SSD-1B vs FLUX vs Stable Diffusion XL
 
-| Metric | SSD-1B | SDXL | Improvement |
-|--------|--------|------|-------------|
-| Parameters | ~1B | ~3.5B | 71% smaller |
-| Generation Speed | ~2-3s | ~5-8s | 60% faster |
-| VRAM Usage | ~4GB | ~8GB | 50% less |
-| Model Size | ~2GB | ~7GB | 71% smaller |
-| Quality | High | High | Comparable |
+| Metric | SSD-1B | FLUX.1-Krea-dev | SDXL | Notes |
+|--------|--------|-----------------|------|-------|
+| Parameters | ~1B | ~12B | ~3.5B | FLUX is largest but highest quality |
+| Generation Speed | ~2-3s | ~4-6s | ~5-8s | FLUX competitive with SDXL |
+| VRAM Usage | ~4GB | ~8-10GB | ~8GB | FLUX requires more memory |
+| Model Size | ~2GB | ~6GB | ~7GB | FLUX optimized format |
+| Quality | High | Excellent | High | FLUX offers superior detail |
+| Style Support | Good | Excellent | Good | FLUX excels at artistic styles |
 
 ### Typical Generation Times (RTX 3080)
 
@@ -336,12 +356,13 @@ The backend has been **completely refactored** into a clean, modular architectur
 ### **📦 Core Modules**
 
 - **`config/settings.py`** - Centralized configuration management
-  - Model configurations (SSD-1B, SDXL, SVD)
+  - Model configurations (SSD-1B, FLUX, SDXL, SVD)
   - Environment variables and device settings
   - Path and font configurations
 
 - **`models/image_models.py`** - AI model loading and caching
   - SSD-1B pipeline management (`get_pipe()`)
+  - FLUX.1-Krea-dev pipeline management (`get_flux_pipe()`)
   - SDXL base and refiner models (`load_sdxl_models()`)
   - Memory-efficient model loading with global instances
 
