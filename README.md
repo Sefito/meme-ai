@@ -8,7 +8,7 @@
 [![GPU](https://img.shields.io/badge/GPU-CUDA%2012.x-green.svg)](https://developer.nvidia.com/cuda-downloads)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**AI-powered meme and video generator combining the best of modern AI**: Ollama LLM for creative text generation, SSD-1B for ultra-fast image synthesis, and Stable Video Diffusion for animated content. Create hilarious memes and engaging videos with professional typography in seconds!
+**AI-powered meme and video generator combining the best of modern AI**: Ollama LLM for creative text generation, SSD-1B and Flux models for ultra-fast image synthesis, and Stable Video Diffusion for animated content. Create hilarious memes and engaging videos with professional typography in seconds!
 
 ## 🖼️ Web Interface
 
@@ -19,7 +19,7 @@
 ## ⚡ Key Features
 
 - **🎯 AI-Powered Text Generation** - Ollama LLM creates witty, contextual meme text
-- **🖼️ High-Quality Image Generation** - SSD-1B model for crisp, detailed visuals
+- **🖼️ Multiple AI Models** - SSD-1B for speed, FLUX.1-dev for quality, SDXL for refinement
 - **🎬 Video Meme Creation** - Stable Video Diffusion for animated content
 - **🎨 Custom Typography** - Multiple font options with dynamic text positioning
 - **⚡ Real-Time WebSocket Updates** - Live progress tracking with automatic reconnection
@@ -95,7 +95,10 @@ docker compose up --build
 # Download the LLM model (one-time setup)
 docker exec -it $(docker ps -qf name=ollama) ollama pull qwen3:4b
 ```
-> 📝 **Note**: SSD-1B model (~2GB) downloads automatically from HuggingFace on first use
+> 📝 **Note**: AI models download automatically from HuggingFace on first use:
+> - **SSD-1B** (~2GB) - Ultra-fast image generation
+> - **FLUX.1-dev** (~12GB) - High-quality image generation 
+> - **SDXL** (~7GB) - High-resolution with refiner pipeline
 
 2. **Access the Application**
    - **Frontend**: http://localhost:5173 (with live WebSocket updates)
@@ -132,6 +135,31 @@ pnpm dev  # Proxies API requests to localhost:8000
 ```
 
 </details>
+
+## 🤖 AI Models
+
+Choose from multiple AI models based on your needs:
+
+### **SSD-1B** (Default)
+- **Speed**: ⚡ Ultra-fast generation (~2-5 seconds)
+- **Size**: 📦 ~2GB model
+- **Quality**: 🎯 Good quality, optimized for speed
+- **Best for**: Quick meme generation, batch processing
+
+### **FLUX.1-dev** (High Quality)
+- **Speed**: 🐌 Slower generation (~30-60 seconds)
+- **Size**: 📦 ~12GB model
+- **Quality**: ✨ Exceptional quality and detail
+- **Best for**: High-quality memes, professional content
+- **Features**: CPU offloading for VRAM optimization
+
+### **SDXL** (High Resolution)
+- **Speed**: ⏳ Moderate generation (~15-30 seconds)
+- **Size**: 📦 ~7GB base + refiner models
+- **Quality**: 🖼️ High resolution with refiner pipeline
+- **Best for**: Large format memes, detailed images
+
+**Model Selection**: Use the dropdown in the parameter panel to switch between models. Models are automatically downloaded on first use.
 
 ## 🎨 Usage Examples
 
@@ -301,7 +329,7 @@ meme-ai/
 │   │   └── settings.py     # Model configs, environment variables
 │   ├── models/             # AI model loading and management
 │   │   ├── __init__.py
-│   │   └── image_models.py # SSD-1B and SDXL model loaders
+│   │   └── image_models.py # SSD-1B, SDXL and Flux model loaders
 │   ├── services/           # Business logic services
 │   │   ├── __init__.py
 │   │   ├── image_service.py    # Image generation logic
@@ -336,13 +364,14 @@ The backend has been **completely refactored** into a clean, modular architectur
 ### **📦 Core Modules**
 
 - **`config/settings.py`** - Centralized configuration management
-  - Model configurations (SSD-1B, SDXL, SVD)
+  - Model configurations (SSD-1B, SDXL, Flux, SVD)
   - Environment variables and device settings
   - Path and font configurations
 
 - **`models/image_models.py`** - AI model loading and caching
   - SSD-1B pipeline management (`get_pipe()`)
   - SDXL base and refiner models (`load_sdxl_models()`)
+  - Flux pipeline with CPU offloading (`get_flux_pipe()`)
   - Memory-efficient model loading with global instances
 
 - **`services/`** - Business logic separation
