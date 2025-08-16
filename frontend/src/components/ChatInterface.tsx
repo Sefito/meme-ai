@@ -166,7 +166,7 @@ export default function ChatInterface({
                     : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-white'
                 }`}
               >
-                <div className="whitespace-pre-wrap">{message.content}</div>
+                <div>{message.content}</div>
                 <div className={`text-xs mt-1 opacity-70 ${
                   message.role === 'user' ? 'text-blue-100' : 'text-neutral-500'
                 }`}>
