@@ -29,6 +29,7 @@ def run_job(job_id: str, payload: dict):
         websocket_notifier.send_job_update(job_id, "running", 5)
 
     user_prompt = payload.get("prompt","")
+    session_id = payload.get("session_id")
     seed = int(payload.get("seed") or random.randint(1, 2**31-1))
     steps = payload.get("steps", 30)  
     guidance = payload.get("guidance", 5.0)
@@ -36,6 +37,28 @@ def run_job(job_id: str, payload: dict):
     aspect = payload.get("aspect", "1:1")
     has_image_upload = payload.get("has_image_upload", False)
     image_path = payload.get("image_path")
+    
+    # If we have a chat session, get the conversation summary for meme generation
+    if session_id and not user_prompt:
+        try:
+            from services.chat_service import ChatService
+            from redis import Redis
+            redis_client = Redis(host="redis", port=6379)
+            chat_service = ChatService(redis_client)
+            
+            session = chat_service.get_session(session_id)
+            if session:
+                # Extract intent from conversation for meme generation
+                user_prompt = session.get_latest_user_intent()
+                if not user_prompt:
+                    user_prompt = session.get_conversation_context()
+                print(f"Using conversation context for meme generation: {user_prompt}")
+            else:
+                print(f"Warning: Chat session {session_id} not found, using empty prompt")
+                user_prompt = "meme genérico"
+        except Exception as e:
+            print(f"Error retrieving chat session {session_id}: {e}")
+            user_prompt = "meme genérico"
     
     # Get meme text - use provided text or generate via Ollama
     user_top_text = payload.get("top_text", "")

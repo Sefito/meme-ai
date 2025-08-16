@@ -12,6 +12,7 @@ import ParameterPanel from './ParameterPanel';
 import HistoryPanel from './HistoryPanel';
 import ProgressBar from './ProgressBar';
 import ThemeToggle from './ThemeToggle';
+import ChatInterface from './ChatInterface';
 
 export default function MemeStudio() {
   // Job state
@@ -20,11 +21,15 @@ export default function MemeStudio() {
   const status: JobStatus = useJob(jobId ?? undefined);
   const videoStatus: VideoJobStatus = useVideoJob(videoJobId ?? undefined);
 
-  // Form state
+  // Form state - keeping prompt for backward compatibility
   const [prompt, setPrompt] = useState('gato programador con gafas, setup de escritorio caótico, estilo foto realista, luz de neón');
   const [topText, setTopText] = useState('');
   const [bottomText, setBottomText] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  
+  // Chat state
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [useChatMode, setUseChatMode] = useState(false);
   
   // Parameters
   const [steps, setSteps] = useState(30);
@@ -79,17 +84,23 @@ export default function MemeStudio() {
   const isWorking = jobId && (status.status === 'queued' || status.status === 'running');
   const isVideoWorking = videoJobId && (videoStatus.status === 'running' || isWorking);
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.FormEvent, sessionIdOverride?: string) => {
     e.preventDefault();
     
-    if (!prompt.trim()) {
-      toast.error('Por favor, escribe un prompt');
+    // Determine which mode we're using
+    const effectiveSessionId = sessionIdOverride || chatSessionId;
+    const effectivePrompt = prompt.trim();
+    
+    // Validation: need either prompt or chat session
+    if (!effectivePrompt && !effectiveSessionId) {
+      toast.error('Por favor, escribe un prompt o mantén una conversación');
       return;
     }
 
     try {
       const jobData: CreateJob = {
-        prompt: prompt.trim(),
+        prompt: effectivePrompt || undefined,
+        session_id: effectiveSessionId || undefined,
         steps,
         guidance,
         seed: useRandomSeed ? undefined : (seed ? Number(seed) : undefined),
@@ -142,6 +153,28 @@ export default function MemeStudio() {
     setHistory([]);
   };
 
+  const handleChatSessionChange = (sessionId: string) => {
+    setChatSessionId(sessionId);
+  };
+
+  const handleChatGenerateReady = (sessionId: string) => {
+    // User wants to generate meme from chat conversation
+    const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleGenerate(syntheticEvent, sessionId);
+  };
+
+  const handleModeToggle = () => {
+    setUseChatMode(!useChatMode);
+    if (!useChatMode) {
+      // Switching to chat mode
+      setChatSessionId(null);
+      toast.success('Modo chat activado');
+    } else {
+      // Switching to prompt mode
+      toast.success('Modo prompt activado');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white">
       {/* History Panel */}
@@ -175,21 +208,63 @@ export default function MemeStudio() {
           {/* Left Panel: Prompt + Image Upload */}
           <div className="lg:col-span-1 space-y-6">
             <form onSubmit={handleGenerate} className="space-y-6">
-              {/* Prompt */}
+              {/* Mode Toggle */}
               <div className="space-y-2">
-                <label htmlFor="prompt" className="block text-sm font-medium">
-                  Prompt
-                </label>
-                <textarea
-                  id="prompt"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Describe la imagen que quieres generar..."
-                  rows={4}
-                  className="w-full p-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  required
-                />
+                <div className="flex items-center space-x-4">
+                  <button
+                    type="button"
+                    onClick={handleModeToggle}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      !useChatMode 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300'
+                    }`}
+                  >
+                    Prompt directo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleModeToggle}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      useChatMode 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300'
+                    }`}
+                  >
+                    Chat conversacional
+                  </button>
+                </div>
               </div>
+
+              {/* Prompt or Chat Interface */}
+              {useChatMode ? (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">
+                    Conversación sobre tu meme
+                  </label>
+                  <ChatInterface
+                    sessionId={chatSessionId || undefined}
+                    onSessionChange={handleChatSessionChange}
+                    onGenerateReady={handleChatGenerateReady}
+                    disabled={isWorking}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label htmlFor="prompt" className="block text-sm font-medium">
+                    Prompt
+                  </label>
+                  <textarea
+                    id="prompt"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="Describe la imagen que quieres generar..."
+                    rows={4}
+                    className="w-full p-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    required={!useChatMode}
+                  />
+                </div>
+              )}
 
               {/* Meme Text */}
               <div className="grid grid-cols-2 gap-3">
@@ -301,8 +376,15 @@ export default function MemeStudio() {
           {/* Action Buttons */}
           <div className="flex items-center gap-4 justify-center">
             <button
-              onClick={handleGenerate}
-              disabled={isWorking}
+              onClick={(e) => {
+                // In chat mode, we only allow generation if there's an active session
+                if (useChatMode && !chatSessionId) {
+                  toast.error('Primero mantén una conversación para generar un meme');
+                  return;
+                }
+                handleGenerate(e);
+              }}
+              disabled={isWorking || (useChatMode && !chatSessionId)}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               {isWorking ? <Loader2 size={20} className="animate-spin" /> : null}

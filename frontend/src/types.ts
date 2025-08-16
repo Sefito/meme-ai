@@ -1,5 +1,6 @@
 export type CreateJob = { 
-  prompt: string; 
+  prompt?: string;  // Make prompt optional since we might use chat session instead
+  session_id?: string;  // Chat session ID for conversational meme generation
   seed?: number; 
   negative?: string; 
   steps?: number; 
@@ -28,3 +29,26 @@ export type HistoryItem = {
 };
 
 export type Theme = 'light' | 'dark';
+
+// Chat-related types
+export interface ChatMessage {
+  id: string;
+  content: string;
+  role: 'user' | 'assistant';
+  timestamp: string;
+}
+
+export interface ChatResponse {
+  id: string;
+  content: string;
+  role: string;
+  timestamp: string;
+  session_id: string;
+}
+
+export interface ChatSession {
+  session_id: string;
+  messages: ChatMessage[];
+  created_at: string;
+  updated_at: string;
+}

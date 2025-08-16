@@ -1,10 +1,11 @@
-import { CreateJob, CreateVideoJob, JobStatus, VideoJobStatus } from './types';
+import { CreateJob, CreateVideoJob, JobStatus, VideoJobStatus, ChatResponse, ChatSession } from './types';
 
 export async function createJob(data: CreateJob): Promise<{ jobId: string }> {
   // If there's an image file, use FormData for multipart upload
   if (data.image) {
     const formData = new FormData();
-    formData.append('prompt', data.prompt);
+    if (data.prompt) formData.append('prompt', data.prompt);
+    if (data.session_id) formData.append('session_id', data.session_id);
     if (data.seed !== undefined) formData.append('seed', data.seed.toString());
     if (data.negative) formData.append('negative_prompt', data.negative);
     if (data.steps) formData.append('steps', data.steps.toString());
@@ -52,5 +53,25 @@ export async function getJob(id: string): Promise<JobStatus> {
 export async function getVideoJob(id: string): Promise<VideoJobStatus> {
   const r = await fetch(`/api/video-jobs/${id}`);
   if (!r.ok) throw new Error('Error obteniendo el video job');
+  return r.json();
+}
+
+// Chat API functions
+export async function sendChatMessage(message: string, sessionId?: string): Promise<ChatResponse> {
+  const r = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: message,
+      session_id: sessionId
+    })
+  });
+  if (!r.ok) throw new Error('No se pudo enviar el mensaje');
+  return r.json();
+}
+
+export async function getChatHistory(sessionId: string): Promise<ChatSession> {
+  const r = await fetch(`/api/chat/${sessionId}`);
+  if (!r.ok) throw new Error('Error obteniendo historial de chat');
   return r.json();
 }
