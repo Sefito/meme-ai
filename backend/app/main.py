@@ -10,6 +10,10 @@ import json
 import asyncio
 from typing import Dict, Set, Optional, Union
 import os
+import sys
+sys.path.append("/app")
+from worker import run_job
+from video_worker import run_video_job
 
 app = FastAPI(title="Meme AI API")
 
@@ -170,7 +174,6 @@ async def create_job(request: Request):
     if content_type.startswith("multipart/form-data"):
         # Handle multipart form data
         form = await request.form()
-        
         payload_dict = {
             "prompt": form.get("prompt"),
             "seed": int(form.get("seed")) if form.get("seed") else None,
@@ -217,17 +220,21 @@ async def create_job(request: Request):
                 "bottom_text": json_data.get("bottom_text"),
                 "has_image_upload": False,
             }
+
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON payload")
     else:
         raise HTTPException(status_code=400, detail="Unsupported content type")
     
+    print("payload_dict")
+    print(payload_dict)
+    
     # Validate required fields
     if not payload_dict.get("prompt"):
         raise HTTPException(status_code=400, detail="Prompt is required")
     
-    # Queue the job
-    q.enqueue("worker.run_job", job_id, payload_dict, job_id=job_id)
+    # Queue the job using direct function reference
+    q.enqueue(run_job, job_id, payload_dict, job_id=job_id)
     return {"jobId": job_id}
 
 
@@ -238,13 +245,13 @@ def create_job_json(payload: CreateJob):
     job_id = str(uuid4())
     payload_dict = payload.model_dump()
     payload_dict["has_image_upload"] = False
-    q.enqueue("worker.run_job", job_id, payload_dict, job_id=job_id)
+    q.enqueue(run_job, job_id, payload_dict, job_id=job_id)
     return {"jobId": job_id}
 
 @app.post("/api/video-jobs")
 def create_video_job(payload: CreateVideoJob):
     job_id = str(uuid4())
-    video_q.enqueue("video_worker.run_video_job", job_id, payload.model_dump(), job_id=job_id)
+    video_q.enqueue(run_video_job, job_id, payload.model_dump(), job_id=job_id)
     return {"jobId": job_id}
 
 @app.get("/api/jobs/{job_id}")

@@ -42,6 +42,7 @@ flux_model_id = {
 OUT_DIR = "/outputs"
 FONT_PATH = "/fonts/Anton-Regular.ttf"
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+HF_TOKEN = os.environ.get("HF_TOKEN", None)
 
 # Device and dtype settings
 device = "cuda" if torch.cuda.is_available() else "cpu"
