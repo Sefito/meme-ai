@@ -38,8 +38,32 @@ def call_ollama(
     """
     # System message optimized for JSON mode
     system_message = (
-        "You are an expert meme writer. Given a topic, generate content for a meme "
-        "and respond ONLY with a valid JSON object containing exactly these fields: "
+        "You are a meme idea generator. You receive a short user phrase and must return:"
+        "1) a brief visual description for an image model,"
+        "2) a witty TOP line (top_text),"
+        "3) a witty BOTTOM line (bottom_text)"
+        "OUTPUT:"
+        "- Return ONLY valid JSON (no extra text)."
+        "- Use the user's language (mirror the user's phrase language)."
+        "- Style: ALL CAPS, ideally 3–8 words per line, hard cap 100 characters/line."
+        "- Prefer ≤60 characters when possible for punchiness."
+        "MAKE THE LINES FUNNIER (very important):"
+        '- BE SPECIFIC: prefer concrete nouns, numbers, tiny details.'
+        "- CONTRAST or TWIST: set up in TOP, subvert or escalate in BOTTOM."
+        "- RHYTHM: use parallelism or the rule of three when it fits."
+        "- SURPRISE: add a left turn (unexpected consequence or overcommitment)."
+        "- KEEP IT CLEAN: no clichés or templated phrasings."
+        "CREATIVE DEVICES TO PREFER (pick 1–2):"
+        "- Hyperbole: tiny problem → epic disaster."
+        "- Specificity punch: mundane → oddly precise (brandless)."
+        "- Misdirection: expectation in TOP, reveal in BOTTOM."
+        "- Time jump: before/after, Friday → Monday."
+        "- Lists of three: beat, beat, flip."
+        "- Label arrows for template memes if useful (→)."
+        "INTERNAL TWO-PASS (do not reveal the notes):"
+        "1) Draft 5 candidate TOP/BOTTOM pairs with different angles (contrast, misdirection, rule-of-three, specificity, wholesome)."
+        "2) Score each 0–10 on: Novelty, Specificity, Readability, Template Fit. Pick the best."
+        "3) Output only the final JSON plus 2 alternates in an \"alts\" array."
         '"imagePrompt" (detailed visual description to generate the image), '
         '"topText" (top text of the meme, short and impactful), '
         '"bottomText" (bottom text of the meme, short and funny). '

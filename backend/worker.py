@@ -115,9 +115,6 @@ def run_job(job_id: str, payload: dict):
         if WEBSOCKET_ENABLED and websocket_notifier:
             websocket_notifier.send_job_update(job_id, "running", 70)
     
-    # Save source image for reference
-    image.save(f"/outputs/{job_id}_source.png")
-    
     job.meta.update({"progress":85}); job.save_meta()
     if WEBSOCKET_ENABLED and websocket_notifier:
         websocket_notifier.send_job_update(job_id, "running", 85)
