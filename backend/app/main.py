@@ -8,12 +8,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 import json
 import asyncio
-from typing import Dict, Set, Optional, Union
+import logging
+from typing import Dict, Set, Optional, Union, List
 import os
 import sys
 sys.path.append("/app")
 from worker import run_job
 from video_worker import run_video_job
+from services.chat_service import ChatService
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Meme AI API")
 
@@ -28,6 +32,9 @@ app.add_middleware(
 redis = Redis(host="redis", port=6379)
 q = Queue("meme", connection=redis, default_timeout=1000)
 video_q = Queue("video", connection=redis, default_timeout=3000)  # Longer timeout for video processing
+
+# Initialize chat service
+chat_service = ChatService(redis)
 
 
 class WebSocketManager:
@@ -146,7 +153,8 @@ websocket_manager = WebSocketManager()
 app.mount("/outputs", StaticFiles(directory="/outputs"), name="outputs")
 
 class CreateJob(BaseModel):
-    prompt: str
+    prompt: str | None = None  # Make prompt optional since we might use chat session instead
+    session_id: str | None = None  # Chat session ID for conversational meme generation
     seed: int | None = None
     negative: str | None = None
     steps: int | None = 30
@@ -159,6 +167,24 @@ class CreateJob(BaseModel):
 class CreateVideoJob(BaseModel):
     imageUrl: str
     numFrames: int | None = 25
+
+# Chat-related models
+class ChatMessageRequest(BaseModel):
+    content: str
+    session_id: str | None = None
+
+class ChatMessageResponse(BaseModel):
+    id: str
+    content: str
+    role: str
+    timestamp: str
+    session_id: str
+
+class ChatHistoryResponse(BaseModel):
+    session_id: str
+    messages: List[ChatMessageResponse]
+    created_at: str
+    updated_at: str
 
 @app.post("/api/jobs")
 async def create_job(request: Request):
@@ -176,6 +202,7 @@ async def create_job(request: Request):
         form = await request.form()
         payload_dict = {
             "prompt": form.get("prompt"),
+            "session_id": form.get("session_id"),
             "seed": int(form.get("seed")) if form.get("seed") else None,
             "negative": form.get("negative_prompt") or form.get("negative"),  # Support both field names
             "steps": int(form.get("steps")) if form.get("steps") else 30,
@@ -210,6 +237,7 @@ async def create_job(request: Request):
             json_data = json.loads(body)
             payload_dict = {
                 "prompt": json_data.get("prompt"),
+                "session_id": json_data.get("session_id"),
                 "seed": json_data.get("seed"),
                 "negative": json_data.get("negative"),
                 "steps": json_data.get("steps", 30),
@@ -229,9 +257,9 @@ async def create_job(request: Request):
     print("payload_dict")
     print(payload_dict)
     
-    # Validate required fields
-    if not payload_dict.get("prompt"):
-        raise HTTPException(status_code=400, detail="Prompt is required")
+    # Validate required fields - either prompt or session_id should be provided
+    if not payload_dict.get("prompt") and not payload_dict.get("session_id"):
+        raise HTTPException(status_code=400, detail="Either prompt or session_id is required")
     
     # Queue the job using direct function reference
     q.enqueue(run_job, job_id, payload_dict, job_id=job_id)
@@ -302,6 +330,118 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
     except Exception as e:
         print(f"WebSocket error: {e}")
         websocket_manager.disconnect(websocket)
+
+
+@app.post("/api/chat")
+async def create_chat_message(request: ChatMessageRequest):
+    """
+    Create a new chat message and get assistant response.
+    If session_id is not provided, creates a new session.
+    """
+    from services.ollama_service import chat_ollama, OllamaError
+    
+    try:
+        # Get or create chat session
+        if request.session_id:
+            session = chat_service.get_session(request.session_id)
+            if not session:
+                return JSONResponse(
+                    status_code=404,
+                    content={"error": "Chat session not found"}
+                )
+        else:
+            session = chat_service.create_session()
+        
+        # Add user message to session
+        user_message = chat_service.add_message_to_session(
+            session.session_id, 
+            request.content, 
+            "user"
+        )
+        
+        if not user_message:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Failed to save user message"}
+            )
+        
+        # Get conversation context for LLM
+        conversation_context = session.get_conversation_context()
+        
+        # Generate assistant response using Ollama
+        try:
+            assistant_response = chat_ollama(
+                message=request.content,
+                conversation_context=conversation_context
+            )
+        except OllamaError as e:
+            logger.error(f"Ollama error in chat: {e}")
+            assistant_response = "Lo siento, hubo un error al procesar tu mensaje. ¿Podrías intentarlo de nuevo?"
+        
+        # Add assistant response to session
+        assistant_message = chat_service.add_message_to_session(
+            session.session_id,
+            assistant_response,
+            "assistant"
+        )
+        
+        if not assistant_message:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Failed to save assistant message"}
+            )
+        
+        # Return the assistant message
+        return ChatMessageResponse(
+            id=assistant_message.id,
+            content=assistant_message.content,
+            role=assistant_message.role,
+            timestamp=assistant_message.timestamp.isoformat(),
+            session_id=session.session_id
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error"}
+        )
+
+@app.get("/api/chat/{session_id}")
+async def get_chat_history(session_id: str):
+    """Get chat history for a specific session"""
+    try:
+        session = chat_service.get_session(session_id)
+        if not session:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "Chat session not found"}
+            )
+        
+        messages = [
+            ChatMessageResponse(
+                id=msg.id,
+                content=msg.content,
+                role=msg.role,
+                timestamp=msg.timestamp.isoformat(),
+                session_id=session.session_id
+            )
+            for msg in session.messages
+        ]
+        
+        return ChatHistoryResponse(
+            session_id=session.session_id,
+            messages=messages,
+            created_at=session.created_at.isoformat(),
+            updated_at=session.updated_at.isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting chat history: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error"}
+        )
 
 
 @app.get("/api/health")

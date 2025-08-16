@@ -148,6 +148,103 @@ def call_ollama(
         return prompt, "", ""
 
 
+def chat_ollama(
+    message: str,
+    conversation_context: str = "",
+    model: str = "qwen3:4b",
+    temperature: float = 0.7,
+    max_tokens: int = 256,
+    timeout: int = 120
+) -> str:
+    """
+    Call Ollama API for conversational chat about meme ideas.
+    
+    Args:
+        message: User's new message
+        conversation_context: Previous conversation history
+        model: Ollama model to use (default: qwen3:4b)
+        temperature: Sampling temperature (0.0-1.0, default: 0.7)
+        max_tokens: Maximum tokens to generate (default: 256)
+        timeout: Request timeout in seconds (default: 120)
+        
+    Returns:
+        Assistant's response string
+        
+    Raises:
+        OllamaError: If the API call fails
+    """
+    # System message for conversational meme assistant
+    system_message = (
+        "Eres un asistente conversacional especializado en ayudar a crear memes. "
+        "Tu trabajo es dialogar con el usuario para entender qué tipo de meme quiere crear. "
+        "Haz preguntas relevantes, sugiere ideas, y ayuda a refinar la concept del meme. "
+        "Mantén un tono amigable y creativo. Responde en el mismo idioma que el usuario. "
+        "NO generes el meme final todavía - solo ayuda al usuario a desarrollar la idea. "
+        "Cuando el usuario esté listo, le dirás que presione 'Generar' para crear el meme."
+    )
+    
+    # Build the full prompt with context
+    if conversation_context:
+        full_prompt = f"Contexto de la conversación:\n{conversation_context}\n\nNuevo mensaje del usuario: {message}"
+    else:
+        full_prompt = f"Usuario: {message}"
+    
+    # Build request body for chat (without JSON mode)
+    request_body = {
+        "model": model,
+        "prompt": full_prompt,
+        "system": system_message,
+        "stream": False,
+        "options": {
+            "temperature": temperature,
+            "num_predict": max_tokens,
+        }
+    }
+    
+    logger.info(f"Calling Ollama chat API with model: {model}")
+    logger.debug(f"Chat request body: {request_body}")
+    
+    try:
+        # Make the HTTP request
+        response = requests.post(
+            f"{OLLAMA_HOST}/api/generate",
+            json=request_body,
+            timeout=timeout,
+            headers={"Content-Type": "application/json"}
+        )
+        
+        # Check HTTP status
+        response.raise_for_status()
+        
+        # Parse response
+        response_data = response.json()
+        logger.debug(f"Raw Ollama chat response: {response_data}")
+        
+        # Extract the generated text
+        generated_text = response_data.get("response", "").strip()
+        
+        if not generated_text:
+            raise OllamaError("Empty response from Ollama API")
+        
+        logger.info(f"Successfully generated chat response - {len(generated_text)} chars")
+        return generated_text
+        
+    except requests.exceptions.RequestException as e:
+        error_msg = f"HTTP request failed: {e}"
+        logger.error(error_msg)
+        raise OllamaError(error_msg) from e
+        
+    except json.JSONDecodeError as e:
+        error_msg = f"Invalid JSON in API response: {e}"
+        logger.error(error_msg)
+        raise OllamaError(error_msg) from e
+        
+    except Exception as e:
+        error_msg = f"Unexpected error calling Ollama chat: {e}"
+        logger.error(error_msg)
+        raise OllamaError(error_msg) from e
+
+
 def _extract_json_fallback(text: str, original_prompt: str) -> Dict[str, str]:
     """
     Fallback method to extract JSON from malformed response text.
